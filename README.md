@@ -69,8 +69,10 @@ Add difficulty modes (easy: 3 pairs, hard: 5 pairs)
 
 Animate marker interactions
 
+
 Display a detailed results screen at the end
 
 To get started, clone this repo, open index.html, and start customizing the game flow.
 
 Good luck and enjoy developing your GeoGame! 🌍
+<img width="1024" height="1536" alt="image" src="https://github.com/user-attachments/assets/5422dc1a-4c41-4bc6-8b57-5c9bf1124a2f" />
