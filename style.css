@@ -1,0 +1,70 @@
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    text-align: center;
+    margin: 0;
+    padding: 0;
+    background-color: #2b2b2b; /* Koyu Arkaplan */
+    color: #fff;
+}
+
+h1 {
+    margin: 15px 0;
+    color: #f7b500; /* Taksi Sarısı */
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+#top-bar {
+    display: flex;
+    justify-content: center;
+    gap: 30px;
+    background: #1a1a1a;
+    padding: 15px 0;
+    font-size: 20px;
+    border-bottom: 3px solid #f7b500;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+}
+
+.stat-box {
+    background: #333;
+    padding: 5px 15px;
+    border-radius: 5px;
+    border: 1px solid #555;
+}
+
+#map {
+    height: 60vh; /* Ekranın %60'ı */
+    width: 90%;
+    margin: 20px auto;
+    border: 3px solid #f7b500;
+    border-radius: 10px;
+    box-shadow: 0 0 15px rgba(247, 181, 0, 0.2);
+}
+
+#startBtn {
+    padding: 15px 40px;
+    background: #f7b500;
+    color: #000;
+    border: none;
+    border-radius: 30px;
+    font-size: 22px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(247, 181, 0, 0.4);
+}
+
+#startBtn:hover {
+    transform: scale(1.05);
+    background: #ffce47;
+}
+
+/* Leaflet Popup Özelleştirmesi */
+.leaflet-popup-content-wrapper {
+    background: #2b2b2b;
+    color: #f7b500;
+    font-weight: bold;
+}
+.leaflet-popup-tip {
+    background: #2b2b2b;
+}
