@@ -69,6 +69,9 @@ Add difficulty modes (easy: 3 pairs, hard: 5 pairs)
 
 Animate marker interactions
 
+## 🎨 Design & Layout
+The user interface was designed to be simple and user-friendly, focusing on the map and game stats. Below is the initial wireframe/sketch of the project:
+
 
 Display a detailed results screen at the end
 
