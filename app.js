@@ -1,19 +1,19 @@
 // ----------------------
-// 1) Leaflet Map Setup
+// 1) Harita Kurulumu (NYC Odaklı)
 // ----------------------
-// Haritayı biraz daha karanlık moda (CartoDB DarkMatter) çekebiliriz ama şimdilik OSM kalsın.
-let map = L.map('map').setView([40.725, -74.000], 13);
+// Harita altlığını 'CartoDB Dark Matter' yaparak o havalı siyah temayı sağlıyoruz.
+let map = L.map('map').setView([40.730610, -73.935242], 12); // New York Merkezi
 
-L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
     subdomains: 'abcd',
     maxZoom: 19
 }).addTo(map);
 
 // ----------------------
-// 2) Custom Icons (Renkli Markerlar)
+// 2) Özelleştirilmiş İkonlar (Renkli Markerlar)
 // ----------------------
-const greenIcon = new L.Icon({
+const pickupIcon = new L.Icon({
     iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
     shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
     iconSize: [25, 41],
@@ -22,7 +22,7 @@ const greenIcon = new L.Icon({
     shadowSize: [41, 41]
 });
 
-const redIcon = new L.Icon({
+const dropoffIcon = new L.Icon({
     iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
     shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
     iconSize: [25, 41],
@@ -32,7 +32,17 @@ const redIcon = new L.Icon({
 });
 
 // ----------------------
-// 3) Game Data & Variables
+// 3) Oyun Verisi (NYC Taksi Senaryoları)
+// ----------------------
+const missions = [
+    { id: 1, pickup: [40.7580, -73.9855], dropoff: [40.7829, -73.9654], hint: "Times Square -> Central Park" },
+    { id: 2, pickup: [40.7061, -74.0092], dropoff: [40.7484, -73.9857], hint: "Wall St -> Empire State" },
+    { id: 3, pickup: [40.7127, -74.0134], dropoff: [40.7118, -74.0131], hint: "WTC -> Memorial" },
+    { id: 4, pickup: [40.7295, -73.9965], dropoff: [40.7505, -73.9934], hint: "NYU -> Penn Station" }
+];
+
+// ----------------------
+// 4) Oyun Değişkenleri
 // ----------------------
 let timer = 60;
 let score = 0;
@@ -40,205 +50,121 @@ let lives = 3;
 let selectedPickup = null;
 let gameStarted = false;
 let timerInterval = null;
-
-let pickupMarkers = [];
-let dropoffMarkers = [];
-let routeLines = []; // Çizilen rotaları tutmak için
-
-// Veriyi zenginleştirdik: İpucu (hint) ekledik.
-const gameData = [
-    {
-        id: 0,
-        pickup: [40.730, -73.995],
-        dropoff: [40.715, -74.015],
-        hint: "Target: Financial District"
-    },
-    {
-        id: 1,
-        pickup: [40.741, -74.003],
-        dropoff: [40.722, -73.987],
-        hint: "Target: East Village"
-    },
-    {
-        id: 2,
-        pickup: [40.749, -73.984],
-        dropoff: [40.732, -73.999],
-        hint: "Target: Washington Square"
-    },
-    {
-        id: 3, 
-        pickup: [40.758, -73.985], // Times Square civarı
-        dropoff: [40.782, -73.965], // Central Park
-        hint: "Target: Central Park"
-    }
-];
+let markersLayer = L.layerGroup().addTo(map); // Markerları temizlemek kolay olsun diye grup yaptık
 
 // ----------------------
-// 4) Load Markers
+// 5) Markerları Yükle
 // ----------------------
-function loadMarkers() {
-    // Öncekileri temizle
-    pickupMarkers.forEach(m => map.removeLayer(m));
-    dropoffMarkers.forEach(m => map.removeLayer(m));
-    routeLines.forEach(l => map.removeLayer(l));
+function loadGame() {
+    markersLayer.clearLayers(); // Eski markerları temizle
     
-    pickupMarkers = [];
-    dropoffMarkers = [];
-    routeLines = [];
-
-    gameData.forEach((data) => {
-        // Pickup Marker (Yeşil)
-        let pMarker = L.marker(data.pickup, { icon: greenIcon, opacity: 0 }).addTo(map);
-        pMarker.gameId = data.id;
+    missions.forEach(mission => {
+        // --- Pickup Marker (Yeşil) ---
+        let pMarker = L.marker(mission.pickup, { icon: pickupIcon, opacity: 0 }).addTo(markersLayer);
+        pMarker.gameId = mission.id;
         pMarker.type = "pickup";
-        pMarker.bindPopup(`<b>Müşteri Bekliyor!</b><br>Hedef: ${data.hint}`);
+        pMarker.bindPopup(`<b>🚖 Müşteri Bekliyor!</b><br>Hedef: ${mission.hint}`);
         
-        pMarker.on("click", () => handlePickupClick(pMarker));
-        pickupMarkers.push(pMarker);
+        pMarker.on('click', () => {
+            if(!gameStarted) return;
+            selectedPickup = pMarker;
+            pMarker.openPopup();
+            // Görsel seçim efekti (Opaklık değişimi)
+            markersLayer.eachLayer(layer => layer.setOpacity(0.4)); 
+            pMarker.setOpacity(1);
+        });
 
-        // Dropoff Marker (Kırmızı)
-        let dMarker = L.marker(data.dropoff, { icon: redIcon, opacity: 0 }).addTo(map);
-        dMarker.gameId = data.id;
+        // --- Dropoff Marker (Kırmızı) ---
+        let dMarker = L.marker(mission.dropoff, { icon: dropoffIcon, opacity: 0 }).addTo(markersLayer);
+        dMarker.gameId = mission.id;
         dMarker.type = "dropoff";
-        dMarker.bindPopup(`<b>İniş Noktası</b><br>${data.hint}`);
-        
-        dMarker.on("click", () => handleDropoffClick(dMarker));
-        dropoffMarkers.push(dMarker);
+        dMarker.bindPopup(`<b>🏁 Hedef Nokta</b><br>${mission.hint}`);
+
+        dMarker.on('click', () => {
+            if(!gameStarted || !selectedPickup) return;
+            checkMatch(selectedPickup, dMarker);
+        });
     });
 }
 
 // ----------------------
-// 5) Interactions
+// 6) Eşleşme Kontrolü (Oyun Mantığı)
 // ----------------------
-function handlePickupClick(marker) {
-    if (!gameStarted) return;
-
-    selectedPickup = marker;
-    marker.openPopup(); // İpucunu göster
-
-    // Seçim efekti: Diğerlerini soluklaştır
-    pickupMarkers.forEach(m => m.setOpacity(0.4));
-    marker.setOpacity(1);
-}
-
-function handleDropoffClick(marker) {
-    if (!gameStarted || !selectedPickup) {
-        marker.bindPopup("Önce bir yolcu (Yeşil) seçmelisin!").openPopup();
-        return;
-    }
-
-    // MATCHING LOGIC
-    if (marker.gameId === selectedPickup.gameId) {
-        // --- DOĞRU EŞLEŞME ---
+function checkMatch(pickup, dropoff) {
+    if (pickup.gameId === dropoff.gameId) {
+        // --- DOĞRU ---
         score += 100;
-        document.getElementById("score").textContent = `SCORE: ${score}`;
-
-        // Görsel Efekt: Çizgi Çiz (Polyline)
-        let route = L.polyline([selectedPickup.getLatLng(), marker.getLatLng()], {
+        document.getElementById('score').textContent = `SCORE: ${score}`;
+        
+        // Başarılı Rotayı Çiz (Sarı Çizgi)
+        L.polyline([pickup.getLatLng(), dropoff.getLatLng()], {
             color: '#f7b500', // Taksi Sarısı
-            weight: 4,
-            opacity: 0.8,
-            dashArray: '10, 10' // Kesikli çizgi
+            weight: 5,
+            dashArray: '10, 10'
         }).addTo(map);
-        
-        routeLines.push(route);
-        
-        // Markerları kaldır (veya kalıcı hale getirip etkileşimi kapatabiliriz)
-        map.removeLayer(selectedPickup);
-        map.removeLayer(marker);
-        
-        // Diziden çıkar ki tekrar tıklanmasın (basit yöntem)
-        // (Daha kompleks bir state yönetimi yapılabilir ama bu yeterli)
 
-        checkWin();
+        // Markerları kaldır
+        markersLayer.removeLayer(pickup);
+        markersLayer.removeLayer(dropoff);
+        selectedPickup = null;
+
+        // Reset Opacity
+        markersLayer.eachLayer(layer => layer.setOpacity(1));
+
+        // Kazanma Kontrolü
+        if (score === missions.length * 100) endGame(true);
+
     } else {
-        // --- YANLIŞ EŞLEŞME ---
+        // --- YANLIŞ ---
         lives--;
         updateLives();
-        marker.bindPopup("❌ Yanlış Hedef!").openPopup();
-
-        if (lives <= 0) {
-            endGame(false);
-        }
-    }
-
-    // Reset selection
-    selectedPickup = null;
-    pickupMarkers.forEach(m => {
-        if(map.hasLayer(m)) m.setOpacity(1); // Sadece haritada kalanları düzelt
-    });
-}
-
-function checkWin() {
-    // Tüm pickup markerları haritadan silindiyse kazanmıştır
-    // (Not: map.hasLayer kontrolü daha sağlıklı olur)
-    let remaining = pickupMarkers.filter(m => map.hasLayer(m)).length;
-    if (remaining === 0) {
-        endGame(true);
+        dropoff.bindPopup("❌ Yanlış Hedef!").openPopup();
+        if (lives <= 0) endGame(false);
     }
 }
 
-// ----------------------
-// 6) UI Updates
-// ----------------------
 function updateLives() {
-    let heartStr = "";
-    for (let i = 0; i < lives; i++) heartStr += "🚕 "; // Kalp yerine Taksi ikonu
-    document.getElementById("lives").textContent = `LIVES: ${heartStr}`;
+    let hearts = "🚕 ".repeat(lives);
+    document.getElementById('lives').textContent = `LIVES: ${hearts}`;
 }
 
 // ----------------------
-// 7) Game Loop
+// 7) Başlat / Bitir / Zamanlayıcı
 // ----------------------
-document.getElementById("startBtn").addEventListener("click", () => {
-    if (gameStarted) return; // Zaten başladıysa engelle
-
+document.getElementById('startBtn').addEventListener('click', () => {
+    if(gameStarted) return;
     gameStarted = true;
     timer = 60;
     score = 0;
     lives = 3;
     selectedPickup = null;
-
-    // UI Reset
-    document.getElementById("timer").textContent = `TIMER: ${timer}s`;
-    document.getElementById("score").textContent = `SCORE: ${score}`;
-    updateLives();
-    document.getElementById("startBtn").style.display = "none"; // Butonu gizle
-
-    // Markerları Görünür Yap
-    loadMarkers(); // Yeniden yükle
-    pickupMarkers.forEach(m => m.setOpacity(1));
-    dropoffMarkers.forEach(m => m.setOpacity(1));
-
-    startTimer();
-});
-
-function startTimer() {
-    if (timerInterval) clearInterval(timerInterval); // Öncekini temizle
     
+    // UI Güncelle
+    document.getElementById('startBtn').style.display = 'none';
+    document.getElementById('score').textContent = `SCORE: 0`;
+    document.getElementById('timer').textContent = `TIMER: 60s`;
+    updateLives();
+
+    // Haritayı Temizle ve Markerları Göster
+    map.eachLayer(layer => { if(layer instanceof L.Polyline) map.removeLayer(layer); }); // Çizgileri sil
+    loadGame();
+    markersLayer.eachLayer(layer => layer.setOpacity(1)); // Görünür yap
+
+    // Zamanlayıcıyı Başlat
     timerInterval = setInterval(() => {
         timer--;
-        document.getElementById("timer").textContent = `TIMER: ${timer}s`;
-
-        if (timer <= 0) {
-            clearInterval(timerInterval);
-            endGame(false);
-        }
+        document.getElementById('timer').textContent = `TIMER: ${timer}s`;
+        if (timer <= 0) endGame(false);
     }, 1000);
-}
+});
 
 function endGame(won) {
     gameStarted = false;
     clearInterval(timerInterval);
-    document.getElementById("startBtn").style.display = "inline-block"; // Butonu geri getir
-    document.getElementById("startBtn").textContent = "Restart Game";
-
-    if (won) {
-        alert(`🎉 HARİKA! Puanın: ${score}\nTüm yolcuları zamanında yetiştirdin.`);
-    } else {
-        alert("❌ OYUN BİTTİ! Süre doldu veya kaza yaptın.");
-    }
+    document.getElementById('startBtn').style.display = 'inline-block';
+    document.getElementById('startBtn').textContent = won ? "YOU WON! Play Again" : "GAME OVER - Try Again";
+    alert(won ? `🎉 Tebrikler! Puanın: ${score}` : "❌ Süre bitti veya kaza yaptın!");
 }
 
-// Başlangıçta yükle ama gizli kalsınlar
-loadMarkers();
+// Sayfa yüklenince markerları gizli şekilde hazırla
+loadGame();
